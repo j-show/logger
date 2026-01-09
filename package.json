@@ -1,11 +1,6 @@
 {
   "name": "@jshow/logger",
   "version": "1.0.1",
-  "main": "lib/index.js",
-  "module": "lib-es/index.js",
-  "types": "lib/index.d.ts",
-  "files": ["/lib/*", "/lib-es/*", "/package.json", "/README.md"],
-  "keywords": ["log", "logger", "jshow", "@jshow", "jshow-logger", "@jshow-logger"],
   "license": "MIT",
   "homepage": "https://github.com/j-show/logger",
   "repository": {
@@ -15,51 +10,56 @@
   "bugs": {
     "url": "https://github.com/j-show/logger/issues"
   },
+  "keywords": [
+    "log",
+    "logger",
+    "jshow",
+    "@jshow",
+    "jshow-logger",
+    "@jshow-logger"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "README_CN.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "engines": {
+    "pnpm": ">=10"
+  },
   "scripts": {
-    "precommit": "lint-staged",
-    "prepublishOnly": "yarn clean && yarn build",
-    "build": "tsc --pretty -p ./tsconfig.build.json && tsc --pretty -p ./tsconfig.build.es.json",
-    "clean": "shx rm -rf lib && shx rm -rf lib-es",
-    "test": "jest --coverage"
+    "prepare": "husky",
+    "clean": "rm -rf ./dist && rm -rf ./out",
+    "build": "pnpm clean && vite build",
+    "test": "vitest --run",
+    "example:basic": "ts-node ./examples/basic.ts",
+    "example:advanced": "ts-node ./examples/advanced.ts",
+    "example:config": "ts-node ./examples/configuration.ts",
+    "example:color": "ts-node ./examples/color.ts",
+    "example:real": "ts-node ./examples/real-world.ts"
   },
   "devDependencies": {
-    "@types/jest": "^27.5.1",
-    "@types/lodash": "^4.14.182",
-    "@types/node": "^17.0.33",
-    "@types/prettier": "^2.6.1",
-    "@types/shelljs": "^0.8.11",
-    "@typescript-eslint/eslint-plugin": "^5.23.0",
-    "@typescript-eslint/parser": "^5.23.0",
-    "eslint": "^8.15.0",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-eslint-plugin": "^4.1.0",
-    "eslint-plugin-import": "^2.26.0",
-    "eslint-plugin-jshow": "^1.0.2",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^4.0.0",
-    "eslint-plugin-simple-import-sort": "^7.0.0",
-    "eslint-plugin-unused-imports": "^2.0.0",
-    "husky": "^8.0.1",
-    "jest": "^28.1.0",
-    "lint-staged": "^12.4.1",
-    "lodash": "^4.17.21",
-    "mocha": "^10.0.0",
-    "prettier": "^2.6.2",
-    "shelljs": "^0.8.5",
-    "shx": "^0.3.4",
-    "standard": "^17.0.0",
-    "ts-jest": "^28.0.2",
-    "ts-node": "^10.7.0",
-    "type-coverage": "^2.21.1",
-    "typescript": "^4.6.4"
-  },
-  "standard": {
-    "ignore": ["lib", "lib-es", "__snapshots__"]
-  },
-  "lint-staged": {
-    "*.ts": ["prettier --parser=typescript --write", "git add"],
-    "*.js": ["standard --fix", "git add"],
-    "*.md": ["prettier --parser=markdown --write", "git add"],
-    "*.json": ["prettier --parser=json --write", "git add"]
+    "@types/node": "^22",
+    "eslint": "^9",
+    "eslint-config-jshow": "latest",
+    "eslint-config-prettier": "latest",
+    "eslint-plugin-jshow": "latest",
+    "eslint-plugin-prettier": "latest",
+    "husky": "latest",
+    "lint-staged": "latest",
+    "prettier": ">=3",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5",
+    "typescript-eslint": "^8",
+    "vite": "^7",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4"
   }
 }

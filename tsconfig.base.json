@@ -1,10 +1,8 @@
 {
-  "exclude": ["node_modules"],
   "compilerOptions": {
-    "outDir": "lib",
-    "target": "es2019",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "allowJs": false,
     "declaration": true,
     "downlevelIteration": false,
@@ -12,19 +10,20 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "sourceMap": true,
-
     "noImplicitAny": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-
     "preserveConstEnums": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "suppressExcessPropertyErrors": true,
-    "suppressImplicitAnyIndexErrors": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "isolatedModules": true
-  }
+    "isolatedModules": true,
+    "exactOptionalPropertyTypes": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "./global.d.ts"
+  ]
 }
