@@ -157,13 +157,16 @@ const createLoggerWrap = (
    * @private
    */
   const print = (level: LogLevel, ...msg: Array<unknown>) => {
-    if (!canPrintLevels(level, currentPrintLevel.levels || globalPrintLevels))
-      return;
     // 检查日志级别是否允许输出
-    if (!canPrintLevel(level, currentPrintLevel.level || globalPrintLevel))
+    if (
+      !canPrintLevels(level, currentPrintLevel.levels || globalPrintLevels) ||
+      !canPrintLevel(level, currentPrintLevel.level || globalPrintLevel)
+    )
       return;
+
     // 检查核心日志记录器是否已初始化
     if (!coreLogger) return;
+
     // 检查过滤器是否允许输出
     if (
       context.config.filter &&
