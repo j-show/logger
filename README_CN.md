@@ -181,14 +181,100 @@ loggerWithExtra.info('API 请求处理');
 
 ## Dynamic Log Level
 
-动态设置日志级别：
+每个日志记录器实例都可以拥有自己的日志级别设置，这些设置会与全局日志级别一起工作。您可以动态更改特定日志记录器实例的日志级别，而不会影响其他日志记录器。
+
+### 使用 `setLevel()`
+
+`setLevel()` 设置一个阈值级别。只有严重程度等于或高于阈值的日志才会被输出。严重程度顺序为：`error` > `warn` > `info` > `debug`。
 
 ```typescript
 const debugLogger = logger.fork({ namespace: 'debug' });
 debugLogger.setLevel('debug');
-debugLogger.debug('这条调试信息会显示');
+debugLogger.debug('这条调试信息会显示'); // ✓ 输出
+debugLogger.info('这条信息会显示');       // ✓ 输出
+debugLogger.warn('这条警告会显示');       // ✓ 输出
+debugLogger.error('这条错误会显示');      // ✓ 输出
+
 debugLogger.setLevel('info');
-debugLogger.debug('这条调试信息不会显示');
+debugLogger.debug('这条调试信息不会显示'); // ✗ 被过滤
+debugLogger.info('这条信息会显示');        // ✓ 输出
+debugLogger.warn('这条警告会显示');        // ✓ 输出
+debugLogger.error('这条错误会显示');       // ✓ 输出
+
+debugLogger.setLevel('error');
+debugLogger.debug('这条调试信息不会显示'); // ✗ 被过滤
+debugLogger.info('这条信息不会显示');      // ✗ 被过滤
+debugLogger.warn('这条警告不会显示');      // ✗ 被过滤
+debugLogger.error('这条错误会显示');       // ✓ 输出
+```
+
+### 使用 `setLevels()`
+
+`setLevels()` 设置允许的日志级别白名单。只有白名单中的日志级别才会被输出。
+
+```typescript
+const customLogger = logger.fork({ namespace: 'custom' });
+customLogger.setLevels('info', 'error');
+customLogger.debug('这条调试信息不会显示'); // ✗ 不在白名单中
+customLogger.info('这条信息会显示');        // ✓ 在白名单中
+customLogger.warn('这条警告不会显示');      // ✗ 不在白名单中
+customLogger.error('这条错误会显示');       // ✓ 在白名单中
+
+// 清除白名单（使用所有级别）
+customLogger.setLevels();
+customLogger.debug('这条调试信息会显示'); // ✓ 输出（如果全局级别允许）
+```
+
+### 与全局日志级别的交互
+
+实例级别的日志级别设置会与全局日志级别设置一起工作。日志必须同时满足两个条件才会被输出：
+
+```typescript
+import { setLogLevel, logger } from '@jshow/logger';
+
+// 设置全局日志级别为 'warn'
+setLogLevel('warn');
+
+const appLogger = logger.fork({ namespace: 'app' });
+appLogger.setLevel('debug'); // 实例级别：debug
+
+// 即使实例级别是 'debug'，全局级别是 'warn'
+appLogger.debug('这条不会显示'); // ✗ 被全局级别过滤
+appLogger.info('这条不会显示');  // ✗ 被全局级别过滤
+appLogger.warn('这条会显示');    // ✓ 两个级别都允许
+appLogger.error('这条会显示');   // ✓ 两个级别都允许
+```
+
+### Fork 日志记录器中的继承
+
+当您使用 `fork()` 创建子日志记录器时，子日志记录器会继承父日志记录器的日志级别设置：
+
+```typescript
+const parentLogger = logger.fork({ namespace: 'parent' });
+parentLogger.setLevel('info');
+
+const childLogger = parentLogger.fork({ namespace: 'child' });
+// childLogger 继承了 parentLogger 的 'info' 级别
+
+childLogger.debug('这条不会显示'); // ✗ 被过滤
+childLogger.info('这条会显示');     // ✓ 输出
+
+// 您可以为子日志记录器覆盖级别
+childLogger.setLevel('debug');
+childLogger.debug('这条会显示');   // ✓ 输出（如果全局级别允许）
+```
+
+### 重置日志级别
+
+要将日志记录器实例重置为仅使用全局日志级别，可以调用不带参数的 `setLevels()` 来清除实例级别的白名单：
+
+```typescript
+const testLogger = logger.fork({ namespace: 'test' });
+testLogger.setLevel('debug');
+// ... 使用 logger ...
+
+// 重置为仅使用全局级别（清除实例级别设置）
+testLogger.setLevels(); // 清除白名单，现在仅使用全局级别
 ```
 
 ---
@@ -200,33 +286,40 @@ debugLogger.debug('这条调试信息不会显示');
 ```typescript
 import { configure, LoggerFactoryOfConsole } from '@jshow/logger';
 
-configure(LoggerFactoryOfConsole, {
-  format: 'text', // 'text' 或 'json'
-  enableNamespacePrefix: true,
-  enableNamespacePrefixColors: true,
-  appendTagsForTextPrint: true,
-  appendExtraForTextPrint: true
+configure({
+  createCoreLogger: LoggerFactoryOfConsole,
+  config: {
+    format: 'text', // 'text' 或 'json'
+    enableNamespacePrefix: true,
+    enableNamespacePrefixColors: true,
+    appendTagsForTextPrint: true,
+    appendExtraForTextPrint: true
+  }
 });
 ```
 
 ## JSON Format
 
 ```typescript
-configure(LoggerFactoryOfConsole, {
-  format: 'json'
+configure({
+  config: {
+    format: 'json'
+  }
 });
 ```
 
 ## Custom Transformers
 
 ```typescript
-configure(LoggerFactoryOfConsole, {
-  format: 'text',
-  transformTagsForTextPrint: (tags, context) => {
-    return `[Tags: ${Object.keys(tags).join(', ')}]`;
-  },
-  transformExtraForTextPrint: (extra, context) => {
-    return `[Extra: ${JSON.stringify(extra)}]`;
+configure({
+  config: {
+    format: 'text',
+    transformTagsForTextPrint: (tags, context) => {
+      return `[Tags: ${Object.keys(tags).join(', ')}]`;
+    },
+    transformExtraForTextPrint: (extra, context) => {
+      return `[Extra: ${JSON.stringify(extra)}]`;
+    }
   }
 });
 ```
@@ -236,10 +329,12 @@ configure(LoggerFactoryOfConsole, {
 使用过滤器控制哪些日志被输出：
 
 ```typescript
-configure(LoggerFactoryOfConsole, {
-  filter: (namespace, tags) => {
-    // 只显示 production 环境的日志
-    return tags.env === 'production';
+configure({
+  config: {
+    filter: (namespace, tags) => {
+      // 只显示 production 环境的日志
+      return tags.env === 'production';
+    }
   }
 });
 ```
@@ -249,11 +344,13 @@ configure(LoggerFactoryOfConsole, {
 使用钩子函数在日志输出后执行自定义逻辑：
 
 ```typescript
-configure(LoggerFactoryOfConsole, {
-  hook: (level, context, ...messages) => {
-    if (level === 'error') {
-      // 发送错误到监控系统
-      sendToMonitoring(level, context, messages);
+configure({
+  config: {
+    hook: (level, context, ...messages) => {
+      if (level === 'error') {
+        // 发送错误到监控系统
+        sendToMonitoring(level, context, messages);
+      }
     }
   }
 });
@@ -396,6 +493,33 @@ setLoggerIgnore('UserService,ApiClient');
 
 ## Functions
 
+### `configure(options?)`
+配置日志记录器。只能调用一次。如果多次调用，将抛出错误。
+
+```typescript
+import { configure, LoggerFactoryOfConsole } from '@jshow/logger';
+
+// 使用默认控制台日志记录器和默认配置
+configure();
+
+// 使用默认控制台日志记录器和自定义配置
+configure({
+  config: {
+    format: 'json',
+    enableNamespacePrefix: true
+  }
+});
+
+// 使用自定义日志记录器工厂和自定义配置
+configure({
+  createCoreLogger: LoggerFactoryOfConsole,
+  config: {
+    format: 'text',
+    enableNamespacePrefix: true
+  }
+});
+```
+
 ### `setLogLevel(level: LogLevel)`
 设置全局日志级别阈值
 
@@ -428,15 +552,28 @@ interface LoggerContext {
 ### `LoggerConfig`
 ```typescript
 interface LoggerConfig {
-  readonly format: 'text' | 'json';
-  readonly enableNamespacePrefix: boolean;
-  readonly enableNamespacePrefixColors: boolean;
-  readonly appendTagsForTextPrint: boolean;
-  readonly appendExtraForTextPrint: boolean;
-  readonly transformTagsForTextPrint?: (tags, context) => unknown;
-  readonly transformExtraForTextPrint?: (extra, context) => unknown;
-  readonly filter?: (namespace, tags) => boolean;
-  readonly hook?: (level, context, ...messages) => void;
+  format: 'text' | 'json';
+  enableNamespacePrefix: boolean;
+  enableNamespacePrefixColors: boolean;
+  appendTagsForTextPrint: boolean;
+  appendExtraForTextPrint: boolean;
+  transformTagsForTextPrint?: (
+    tags: LoggerContext['tags'],
+    context: LoggerContext
+  ) => unknown;
+  transformExtraForTextPrint?: (
+    extra: LoggerContext['extra'],
+    context: LoggerContext
+  ) => unknown;
+  filter?: (
+    namespace: NonNullable<LoggerContext['namespace']>,
+    tags: NonNullable<LoggerContext['tags']>
+  ) => boolean;
+  hook?: (
+    level: LogLevel,
+    context: LoggerContext,
+    ...messages: Array<unknown>
+  ) => unknown;
 }
 ```
 

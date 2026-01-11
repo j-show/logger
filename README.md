@@ -184,14 +184,100 @@ loggerWithExtra.info('API request processing');
 
 ## Dynamic Log Level
 
-Dynamically set log level:
+Each logger instance can have its own log level settings, which work together with the global log level. You can dynamically change the log level for a specific logger instance without affecting other loggers.
+
+### Using `setLevel()`
+
+`setLevel()` sets a threshold level. Only logs with severity equal to or higher than the threshold will be output. The severity order is: `error` > `warn` > `info` > `debug`.
 
 ```typescript
 const debugLogger = logger.fork({ namespace: 'debug' });
 debugLogger.setLevel('debug');
-debugLogger.debug('This debug message will be shown');
+debugLogger.debug('This debug message will be shown'); // ✓ Output
+debugLogger.info('This info message will be shown');   // ✓ Output
+debugLogger.warn('This warn message will be shown');  // ✓ Output
+debugLogger.error('This error message will be shown'); // ✓ Output
+
 debugLogger.setLevel('info');
-debugLogger.debug('This debug message will not be shown');
+debugLogger.debug('This debug message will NOT be shown'); // ✗ Filtered
+debugLogger.info('This info message will be shown');       // ✓ Output
+debugLogger.warn('This warn message will be shown');      // ✓ Output
+debugLogger.error('This error message will be shown');     // ✓ Output
+
+debugLogger.setLevel('error');
+debugLogger.debug('This debug message will NOT be shown'); // ✗ Filtered
+debugLogger.info('This info message will NOT be shown');   // ✗ Filtered
+debugLogger.warn('This warn message will NOT be shown');   // ✗ Filtered
+debugLogger.error('This error message will be shown');     // ✓ Output
+```
+
+### Using `setLevels()`
+
+`setLevels()` sets a whitelist of allowed log levels. Only logs with levels in the whitelist will be output.
+
+```typescript
+const customLogger = logger.fork({ namespace: 'custom' });
+customLogger.setLevels('info', 'error');
+customLogger.debug('This debug message will NOT be shown'); // ✗ Not in whitelist
+customLogger.info('This info message will be shown');       // ✓ In whitelist
+customLogger.warn('This warn message will NOT be shown');   // ✗ Not in whitelist
+customLogger.error('This error message will be shown');     // ✓ In whitelist
+
+// Clear the whitelist (use all levels)
+customLogger.setLevels();
+customLogger.debug('This debug message will be shown'); // ✓ Output (if global level allows)
+```
+
+### Interaction with Global Log Level
+
+Instance-level log level settings work together with global log level settings. Both conditions must be satisfied for a log to be output:
+
+```typescript
+import { setLogLevel, logger } from '@jshow/logger';
+
+// Set global log level to 'warn'
+setLogLevel('warn');
+
+const appLogger = logger.fork({ namespace: 'app' });
+appLogger.setLevel('debug'); // Instance level: debug
+
+// Even though instance level is 'debug', global level is 'warn'
+appLogger.debug('This will NOT be shown'); // ✗ Filtered by global level
+appLogger.info('This will NOT be shown');  // ✗ Filtered by global level
+appLogger.warn('This will be shown');      // ✓ Both levels allow
+appLogger.error('This will be shown');     // ✓ Both levels allow
+```
+
+### Inheritance in Forked Loggers
+
+When you create a child logger using `fork()`, the child logger inherits the parent's log level settings:
+
+```typescript
+const parentLogger = logger.fork({ namespace: 'parent' });
+parentLogger.setLevel('info');
+
+const childLogger = parentLogger.fork({ namespace: 'child' });
+// childLogger inherits the 'info' level from parentLogger
+
+childLogger.debug('This will NOT be shown'); // ✗ Filtered
+childLogger.info('This will be shown');      // ✓ Output
+
+// You can override the level for the child logger
+childLogger.setLevel('debug');
+childLogger.debug('This will be shown');     // ✓ Output (if global level allows)
+```
+
+### Resetting Log Level
+
+To reset a logger instance to use only the global log level, call `setLevels()` with no arguments to clear the instance-level whitelist:
+
+```typescript
+const testLogger = logger.fork({ namespace: 'test' });
+testLogger.setLevel('debug');
+// ... use logger ...
+
+// Reset to use global level only (clear instance-level settings)
+testLogger.setLevels(); // Clear the whitelist, now uses global level only
 ```
 
 ---
@@ -203,33 +289,40 @@ debugLogger.debug('This debug message will not be shown');
 ```typescript
 import { configure, LoggerFactoryOfConsole } from '@jshow/logger';
 
-configure(LoggerFactoryOfConsole, {
-  format: 'text', // 'text' or 'json'
-  enableNamespacePrefix: true,
-  enableNamespacePrefixColors: true,
-  appendTagsForTextPrint: true,
-  appendExtraForTextPrint: true
+configure({
+  createCoreLogger: LoggerFactoryOfConsole,
+  config: {
+    format: 'text', // 'text' or 'json'
+    enableNamespacePrefix: true,
+    enableNamespacePrefixColors: true,
+    appendTagsForTextPrint: true,
+    appendExtraForTextPrint: true
+  }
 });
 ```
 
 ## JSON Format
 
 ```typescript
-configure(LoggerFactoryOfConsole, {
-  format: 'json'
+configure({
+  config: {
+    format: 'json'
+  }
 });
 ```
 
 ## Custom Transformers
 
 ```typescript
-configure(LoggerFactoryOfConsole, {
-  format: 'text',
-  transformTagsForTextPrint: (tags, context) => {
-    return `[Tags: ${Object.keys(tags).join(', ')}]`;
-  },
-  transformExtraForTextPrint: (extra, context) => {
-    return `[Extra: ${JSON.stringify(extra)}]`;
+configure({
+  config: {
+    format: 'text',
+    transformTagsForTextPrint: (tags, context) => {
+      return `[Tags: ${Object.keys(tags).join(', ')}]`;
+    },
+    transformExtraForTextPrint: (extra, context) => {
+      return `[Extra: ${JSON.stringify(extra)}]`;
+    }
   }
 });
 ```
@@ -239,10 +332,12 @@ configure(LoggerFactoryOfConsole, {
 Use filters to control which logs are output:
 
 ```typescript
-configure(LoggerFactoryOfConsole, {
-  filter: (namespace, tags) => {
-    // Only show logs from production environment
-    return tags.env === 'production';
+configure({
+  config: {
+    filter: (namespace, tags) => {
+      // Only show logs from production environment
+      return tags.env === 'production';
+    }
   }
 });
 ```
@@ -252,11 +347,13 @@ configure(LoggerFactoryOfConsole, {
 Use hook functions to execute custom logic after log output:
 
 ```typescript
-configure(LoggerFactoryOfConsole, {
-  hook: (level, context, ...messages) => {
-    if (level === 'error') {
-      // Send errors to monitoring system
-      sendToMonitoring(level, context, messages);
+configure({
+  config: {
+    hook: (level, context, ...messages) => {
+      if (level === 'error') {
+        // Send errors to monitoring system
+        sendToMonitoring(level, context, messages);
+      }
     }
   }
 });
@@ -399,6 +496,33 @@ setLoggerIgnore('UserService,ApiClient');
 
 ## Functions
 
+### `configure(options?)`
+Configure the logger. Can only be called once. If called multiple times, throws an error.
+
+```typescript
+import { configure, LoggerFactoryOfConsole } from '@jshow/logger';
+
+// Use default console logger with default config
+configure();
+
+// Use default console logger with custom config
+configure({
+  config: {
+    format: 'json',
+    enableNamespacePrefix: true
+  }
+});
+
+// Use custom logger factory with custom config
+configure({
+  createCoreLogger: LoggerFactoryOfConsole,
+  config: {
+    format: 'text',
+    enableNamespacePrefix: true
+  }
+});
+```
+
 ### `setLogLevel(level: LogLevel)`
 Set global log level threshold
 
@@ -431,15 +555,28 @@ interface LoggerContext {
 ### `LoggerConfig`
 ```typescript
 interface LoggerConfig {
-  readonly format: 'text' | 'json';
-  readonly enableNamespacePrefix: boolean;
-  readonly enableNamespacePrefixColors: boolean;
-  readonly appendTagsForTextPrint: boolean;
-  readonly appendExtraForTextPrint: boolean;
-  readonly transformTagsForTextPrint?: (tags, context) => unknown;
-  readonly transformExtraForTextPrint?: (extra, context) => unknown;
-  readonly filter?: (namespace, tags) => boolean;
-  readonly hook?: (level, context, ...messages) => void;
+  format: 'text' | 'json';
+  enableNamespacePrefix: boolean;
+  enableNamespacePrefixColors: boolean;
+  appendTagsForTextPrint: boolean;
+  appendExtraForTextPrint: boolean;
+  transformTagsForTextPrint?: (
+    tags: LoggerContext['tags'],
+    context: LoggerContext
+  ) => unknown;
+  transformExtraForTextPrint?: (
+    extra: LoggerContext['extra'],
+    context: LoggerContext
+  ) => unknown;
+  filter?: (
+    namespace: NonNullable<LoggerContext['namespace']>,
+    tags: NonNullable<LoggerContext['tags']>
+  ) => boolean;
+  hook?: (
+    level: LogLevel,
+    context: LoggerContext,
+    ...messages: Array<unknown>
+  ) => unknown;
 }
 ```
 
