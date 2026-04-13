@@ -4,42 +4,47 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { canPrintLevel, configure, logger, setLevel } from '../../src/logger';
+import {
+  canPrintByLevel,
+  configure,
+  logger,
+  setLogLevel
+} from '../../src/logger';
 import type { LogLevel } from '../../src/types';
 
-describe('setLevel', () => {
+describe('setLogLevel', () => {
   it('应该能够设置全局日志级别', () => {
-    setLevel('debug');
-    expect(canPrintLevel('debug', 'debug')).toBe(true);
-    setLevel('info');
+    setLogLevel('debug');
+    expect(canPrintByLevel('debug', 'debug')).toBe(true);
+    setLogLevel('info');
   });
 });
 
-describe('canPrintLevel', () => {
+describe('canPrintByCompare', () => {
   it('应该允许输出相同级别的日志', () => {
-    expect(canPrintLevel('error', 'error')).toBe(true);
-    expect(canPrintLevel('warn', 'warn')).toBe(true);
-    expect(canPrintLevel('info', 'info')).toBe(true);
-    expect(canPrintLevel('debug', 'debug')).toBe(true);
+    expect(canPrintByLevel('error', 'error')).toBe(true);
+    expect(canPrintByLevel('warn', 'warn')).toBe(true);
+    expect(canPrintByLevel('info', 'info')).toBe(true);
+    expect(canPrintByLevel('debug', 'debug')).toBe(true);
   });
 
   it('应该允许输出更高级别的日志', () => {
-    expect(canPrintLevel('error', 'info')).toBe(true);
-    expect(canPrintLevel('warn', 'info')).toBe(true);
-    expect(canPrintLevel('error', 'debug')).toBe(true);
+    expect(canPrintByLevel('error', 'info')).toBe(true);
+    expect(canPrintByLevel('warn', 'info')).toBe(true);
+    expect(canPrintByLevel('error', 'debug')).toBe(true);
   });
 
   it('应该阻止输出更低级别的日志', () => {
-    expect(canPrintLevel('debug', 'info')).toBe(false);
-    expect(canPrintLevel('info', 'warn')).toBe(false);
-    expect(canPrintLevel('warn', 'error')).toBe(false);
+    expect(canPrintByLevel('debug', 'info')).toBe(false);
+    expect(canPrintByLevel('info', 'warn')).toBe(false);
+    expect(canPrintByLevel('warn', 'error')).toBe(false);
   });
 
   it('应该正确比较所有级别', () => {
     const levels: LogLevel[] = ['error', 'warn', 'info', 'debug'];
     for (let i = 0; i < levels.length; i++) {
       for (let j = 0; j < levels.length; j++) {
-        const result = canPrintLevel(levels[i], levels[j]);
+        const result = canPrintByLevel(levels[i], levels[j]);
         if (i <= j) {
           expect(result).toBe(true);
         } else {
@@ -86,7 +91,7 @@ describe('logger', () => {
     expect(typeof logger.setLevel).toBe('function');
     logger.setLevel('debug');
     // 验证级别已设置（通过检查是否可以输出 debug 日志）
-    expect(canPrintLevel('debug', 'debug')).toBe(true);
+    expect(canPrintByLevel('debug', 'debug')).toBe(true);
   });
 
   it('fork 应该合并上下文', () => {
@@ -104,14 +109,14 @@ describe('logger', () => {
 
   it('应该根据级别过滤日志', () => {
     const originalLevel = 'info';
-    setLevel('warn');
+    setLogLevel('warn');
     const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     // 注意：如果 logger 未配置，可能不会输出
     logger.info('should not print');
     // 由于 logger 可能未配置，这里只检查方法调用不抛错
     expect(typeof logger.info).toBe('function');
     consoleSpy.mockRestore();
-    setLevel(originalLevel);
+    setLogLevel(originalLevel);
   });
 });
 

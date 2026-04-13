@@ -154,6 +154,13 @@ type LogWithLevels = { [x in LogLevel]: LogFunction };
  */
 interface WithCluster<CTX extends LoggerContext> {
   /**
+   * 写入日志（更贴近“直写/流式”语义）
+   *
+   * 说明：是否追加换行由底层 `CoreLogger.write` 的具体实现决定。
+   * @param ...msg 日志消息数组
+   */
+  write: LogFunction;
+  /**
    * 创建一个新的子日志记录器
    * @param context 子上下文配置
    * @returns 新的日志记录器实例
@@ -226,6 +233,12 @@ export interface Logger<CTX extends LoggerContext>
  * @description 定义日志输出的核心接口，由具体的实现类来实现
  */
 export interface CoreLogger<CTX extends LoggerContext> {
+  /**
+   * 写入日志（不进行换行）
+   * @param context 日志上下文
+   * @param ...msg 日志消息数组
+   */
+  write: (context: CTX, ...msg: Array<unknown>) => unknown;
   /**
    * 打印日志的核心方法
    * @param env 包含日志级别和上下文的环境对象

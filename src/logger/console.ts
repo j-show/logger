@@ -15,11 +15,12 @@ import {
   wrapColorCSS
 } from '../color';
 import {
+  type CoreLogger,
   type CoreLoggerFactory,
   type LoggerContext,
   type LogLevel
 } from '../types';
-import { jsonStringifySafe } from '../utils';
+import { isNodeEnvironment, jsonStringifySafe } from '../utils';
 
 /**
  * 根据内容生成颜色样式
@@ -93,10 +94,9 @@ let processColoringPrefixChunks = (
   namespace: NonNullable<LoggerContext['namespace']>
 ): string[] => {
   // 首次调用时根据环境选择处理函数
-  processColoringPrefixChunks =
-    typeof window === 'undefined'
-      ? processColoringPrefixChunks_Node
-      : processColoringPrefixChunks_Browser;
+  processColoringPrefixChunks = isNodeEnvironment()
+    ? processColoringPrefixChunks_Node
+    : processColoringPrefixChunks_Browser;
 
   return processColoringPrefixChunks(namespace);
 };
@@ -157,12 +157,63 @@ let processColoringLevelChunk = (
   level: LogLevel,
   contents: unknown[]
 ): unknown[] => {
-  processColoringLevelChunk =
-    typeof window === 'undefined'
-      ? processColoringLevelChunk_Node
-      : processColoringLevelChunk_Browser;
+  processColoringLevelChunk = isNodeEnvironment()
+    ? processColoringLevelChunk_Node
+    : processColoringLevelChunk_Browser;
 
   return processColoringLevelChunk(level, contents);
+};
+
+const buildChunksForText = (
+  context: LoggerContext,
+  level: LogLevel,
+  messages: unknown[]
+) => {
+  const config = context.config;
+  const chunks: Array<unknown> = [];
+
+  // 处理命名空间前缀
+  if (config.enableNamespacePrefix && context.namespace?.length) {
+    if (config.enableNamespacePrefixColors) {
+      // 使用颜色显示命名空间
+      chunks.push(...processColoringPrefixChunks(context.namespace));
+    } else {
+      // 普通文本显示命名空间
+      chunks.push(`${context.namespace.join('/')}`);
+    }
+  }
+
+  // 添加日志消息
+
+  chunks.push(...processColoringLevelChunk(level, messages));
+
+  // 处理标签信息
+  if (
+    config.appendTagsForTextPrint &&
+    context.tags &&
+    Object.keys(context.tags).length
+  ) {
+    if (config.transformTagsForTextPrint) {
+      chunks.push(config.transformTagsForTextPrint(context.tags, context));
+    } else {
+      chunks.push(context.tags);
+    }
+  }
+
+  // 处理额外信息
+  if (
+    config.appendExtraForTextPrint &&
+    context.extra &&
+    Object.keys(context.extra).length
+  ) {
+    if (config.transformExtraForTextPrint) {
+      chunks.push(config.transformExtraForTextPrint(context.extra, context));
+    } else {
+      chunks.push(context.extra);
+    }
+  }
+
+  return chunks;
 };
 
 /**
@@ -173,73 +224,64 @@ let processColoringLevelChunk = (
  * const coreLogger = LoggerFactoryOfConsole();
  * coreLogger.print({ level: 'info', context }, 'Hello World');
  */
-export const LoggerFactoryOfConsole: CoreLoggerFactory<LoggerContext> = () => ({
-  /**
-   * 打印日志的核心方法
-   * @param {{ level: LogLevel; context: LoggerContext }} env - 包含日志级别和上下文的环境对象
-   * @param {...unknown} messages - 日志消息数组
-   * @description 根据配置的格式（text 或 json）输出日志到控制台
-   */
-  print: ({ level, context }, ...messages) => {
-    const { config, ...rest } = context;
+export const LoggerFactoryOfConsole: CoreLoggerFactory<LoggerContext> = () => {
+  const coreLogger: CoreLogger<LoggerContext> = {
+    /**
+     * 以“写入”语义输出日志。
+     *
+     * - **Node.js**：使用 `process.stdout.write`（包含换行），用于更贴近流式写入/管道场景。
+     * - **Browser**：由于没有 `stdout`，会自动降级为 `print({ level: 'info' })`，等价于 `console.info(...)`。
+     *
+     * 该方法固定以 `info` 级别输出（用于保持与 `logger.write` 的“无级别/直写”语义兼容）。
+     */
+    write: (context, ...messages) => {
+      if (!isNodeEnvironment()) {
+        coreLogger.print({ level: 'info', context }, ...messages);
+        return;
+      }
 
-    // JSON 格式输出
-    if (context.config.format === 'json') {
-      console[level]?.(jsonStringifySafe({ level, ...rest, messages }));
+      const { config, ...rest } = context;
+
+      if (config.format === 'json') {
+        const chunks = jsonStringifySafe({ level: 'info', ...rest, messages });
+
+        process.stdout.write(`${chunks}\n`);
+      }
+
+      if (config.format === 'text') {
+        const chunks = buildChunksForText(context, 'info', messages);
+        process.stdout.write(`${chunks.join(' ')}\n`);
+      }
+
+      if (config.hook) config.hook('info', context, ...messages);
+    },
+    /**
+     * 打印日志的核心方法
+     * @param {{ level: LogLevel; context: LoggerContext }} env - 包含日志级别和上下文的环境对象
+     * @param {...unknown} messages - 日志消息数组
+     * @description 根据配置的格式（text 或 json）输出日志到控制台
+     */
+    print: ({ level, context }, ...messages) => {
+      const { config, ...rest } = context;
+      const func = console[level];
+
+      // JSON 格式输出
+      if (config.format === 'json') {
+        func?.(jsonStringifySafe({ level, ...rest, messages }));
+      }
+
+      // 文本格式输出
+      if (config.format === 'text') {
+        const chunks = buildChunksForText(context, level, messages);
+
+        // 输出到控制台
+        func?.(...chunks);
+      }
+
+      // 执行钩子函数
+      if (config.hook) config.hook(level, context, ...messages);
     }
+  };
 
-    // 文本格式输出
-    if (context.config.format === 'text') {
-      const chunks: Array<unknown> = [];
-
-      // 处理命名空间前缀
-      if (config.enableNamespacePrefix && context.namespace?.length) {
-        if (config.enableNamespacePrefixColors) {
-          // 使用颜色显示命名空间
-          chunks.push(...processColoringPrefixChunks(context.namespace));
-        } else {
-          // 普通文本显示命名空间
-          chunks.push(`${context.namespace.join('/')}`);
-        }
-      }
-
-      // 添加日志消息
-
-      chunks.push(...processColoringLevelChunk(level, messages));
-
-      // 处理标签信息
-      if (
-        config.appendTagsForTextPrint &&
-        context.tags &&
-        Object.keys(context.tags).length
-      ) {
-        if (config.transformTagsForTextPrint) {
-          chunks.push(config.transformTagsForTextPrint(context.tags, context));
-        } else {
-          chunks.push(context.tags);
-        }
-      }
-
-      // 处理额外信息
-      if (
-        config.appendExtraForTextPrint &&
-        context.extra &&
-        Object.keys(context.extra).length
-      ) {
-        if (config.transformExtraForTextPrint) {
-          chunks.push(
-            config.transformExtraForTextPrint(context.extra, context)
-          );
-        } else {
-          chunks.push(context.extra);
-        }
-      }
-
-      // 输出到控制台
-      console[level](...chunks);
-    }
-
-    // 执行钩子函数
-    if (config.hook) config.hook(level, context, ...messages);
-  }
-});
+  return coreLogger;
+};

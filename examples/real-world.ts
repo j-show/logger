@@ -3,7 +3,7 @@
  * @description 展示在实际项目中的使用方式
  */
 
-import { configure, logger, setLevel } from '../src';
+import { configure, logger, setLogLevel } from '../src';
 import type { LoggerConfig } from '../src/types';
 
 // 类型定义
@@ -64,9 +64,9 @@ configure({
 
 // 根据环境设置日志级别
 if (process.env.NODE_ENV === 'production') {
-  setLevel('info');
+  setLogLevel('info');
 } else {
-  setLevel('debug');
+  setLogLevel('debug');
 }
 
 // 2. 创建模块日志记录器

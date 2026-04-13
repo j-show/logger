@@ -68,3 +68,21 @@ function serializer() {
 export const jsonStringifySafe = (obj: unknown, spaces?: number) => {
   return JSON.stringify(obj, serializer(), spaces);
 };
+
+/**
+ * 判断当前是否运行在 Node.js / Deno / Bun 等类 Node 环境
+ *
+ * 说明：
+ * - 在浏览器环境中通常不存在 `process` 或 `process.versions`
+ * - 在 Node.js 中 `process.versions.node` 是一个版本号字符串（如 "22.1.0"）
+ * - 在 Deno / Bun 中也会提供对应标识（不同运行时字段略有差异）
+ */
+export const isNodeEnvironment = () => {
+  if (typeof process === 'undefined') return false;
+  const versions = process.versions;
+  if (!versions) return false;
+
+  if (!versions.node) return false;
+
+  return !!versions.deon || !!versions.bun;
+};

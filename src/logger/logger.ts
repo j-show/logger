@@ -42,12 +42,12 @@ let coreLogger: CoreLogger<LoggerContext> | undefined;
 
 /**
  * 设置全局日志输出级别
- * @function setLevel
+ * @function setLogLevel
  * @param {LogLevel} level - 要设置的日志级别
  * @description 设置全局的日志输出级别，只有等于或低于此级别的日志才会被输出
  * @example
- * setLevel('debug'); // 显示所有级别的日志
- * setLevel('error'); // 只显示错误日志
+ * setLogLevel('debug'); // 显示所有级别的日志
+ * setLogLevel('error'); // 只显示错误日志
  */
 export const setLogLevel = (level: LogLevel) => {
   globalPrintLevel = level;
@@ -61,20 +61,20 @@ export const setLogLevels = (...levels: LogLevel[]) => {
 
 /**
  * 判断指定级别的日志是否可以被输出
- * @function canPrintLevel
+ * @function canPrintByLevel
  * @param {LogLevel} level - 日志级别
  * @param {LogLevel} printLevel - 输出级别阈值
  * @returns {boolean} 如果日志级别低于或等于输出级别，返回 true
  * @description 比较日志级别和输出级别，决定是否应该输出该日志
  * @example
- * canPrintLevel('debug', 'info') // false，debug 级别低于 info
- * canPrintLevel('error', 'info') // true，error 级别高于 info
+ * canPrintByLevel('debug', 'info') // false，debug 级别低于 info
+ * canPrintByLevel('error', 'info') // true，error 级别高于 info
  */
-const canPrintLevel = (level: LogLevel, printLevel: LogLevel) => {
+export const canPrintByLevel = (level: LogLevel, printLevel: LogLevel) => {
   return logLevelIndexMap[level] <= logLevelIndexMap[printLevel];
 };
 
-const canPrintLevels = (level: LogLevel, printLevels: LogLevel[]) => {
+export const canPrintByContain = (level: LogLevel, printLevels: LogLevel[]) => {
   return printLevels.includes(level);
 };
 
@@ -156,13 +156,18 @@ const createLoggerWrap = (
    * @param {...unknown} msg - 日志消息
    * @private
    */
-  const print = (level: LogLevel, ...msg: Array<unknown>) => {
-    // 检查日志级别是否允许输出
-    if (
-      !canPrintLevels(level, currentPrintLevel.levels || globalPrintLevels) ||
-      !canPrintLevel(level, currentPrintLevel.level || globalPrintLevel)
-    )
-      return;
+  const print = (level: LogLevel | 'none', ...msg: Array<unknown>) => {
+    if (level !== 'none') {
+      // 检查日志级别是否允许输出
+      if (
+        !canPrintByContain(
+          level,
+          currentPrintLevel.levels || globalPrintLevels
+        ) ||
+        !canPrintByLevel(level, currentPrintLevel.level || globalPrintLevel)
+      )
+        return;
+    }
 
     // 检查核心日志记录器是否已初始化
     if (!coreLogger) return;
@@ -175,7 +180,11 @@ const createLoggerWrap = (
       return;
 
     // 调用核心日志记录器输出日志
-    coreLogger.print({ level, context }, ...msg);
+    if (level === 'none') {
+      coreLogger.write(context, ...msg);
+    } else {
+      coreLogger.print({ level, context }, ...msg);
+    }
   };
 
   return {
@@ -187,7 +196,15 @@ const createLoggerWrap = (
     info: (...msg) => print('info', ...msg),
     /** 记录调试级别日志 */
     debug: (...msg) => print('debug', ...msg),
-    // ----
+    /**
+     * 写入日志（优先使用底层 `stdout.write`）
+     *
+     * - 在 Node.js 环境下：由核心 logger 决定具体写入方式，默认实现会使用 `process.stdout.write`。
+     * - 在浏览器环境下：默认控制台实现会降级为 `info` 输出（等价于 `logger.info(...)`）。
+     *
+     * 注意：`write` 仍会执行过滤器（`config.filter`）与 hook（若核心实现支持）。
+     */
+    write: (...msg) => print('none', ...msg),
     /**
      * 创建一个新的子日志记录器
      * @param {LoggerSubContext<LoggerContext>} ctx - 子上下文配置
