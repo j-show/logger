@@ -149,6 +149,14 @@ logger.scope({ namespace: 'request' }, log => {
 });
 ```
 
+## 直写（Raw Write）
+
+如果你需要更贴近“流式写入”的输出（绕过 level 选择，但仍会执行 `filter`/`hook`），可以使用 `logger.write(...)`。
+
+```typescript
+logger.write('hello', 'world');
+```
+
 ---
 
 # Advanced Features
@@ -466,6 +474,9 @@ const [cssContent, cssStyle] = Color.wrapColorCSS('Hello', {
 ### `logger.debug(...msg: unknown[])`
 记录调试级别日志
 
+### `logger.write(...msg: unknown[])`
+直写输出（Node：`stdout.write`，Browser：降级为 `info`）
+
 ### `logger.fork(context: LoggerSubContext)`
 创建一个新的子日志记录器
 
@@ -665,6 +676,14 @@ const level: LogLevel = 'info';
 # 贡献
 
 欢迎贡献！请随时提交 Pull Request。对于重大更改，请先打开一个 issue 来讨论您想要更改的内容。
+
+---
+
+# 测试
+
+```bash
+pnpm test
+```
 
 ---
 

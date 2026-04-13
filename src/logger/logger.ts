@@ -150,6 +150,13 @@ const createLoggerWrap = (
     }
   }
 
+  const checkLevel = (level: LogLevel = 'debug') => {
+    return (
+      canPrintByContain(level, currentPrintLevel.levels || globalPrintLevels) &&
+      canPrintByLevel(level, currentPrintLevel.level || globalPrintLevel)
+    );
+  };
+
   /**
    * 内部打印函数
    * @param {LogLevel} level - 日志级别
@@ -159,14 +166,7 @@ const createLoggerWrap = (
   const print = (level: LogLevel | 'none', ...msg: Array<unknown>) => {
     if (level !== 'none') {
       // 检查日志级别是否允许输出
-      if (
-        !canPrintByContain(
-          level,
-          currentPrintLevel.levels || globalPrintLevels
-        ) ||
-        !canPrintByLevel(level, currentPrintLevel.level || globalPrintLevel)
-      )
-        return;
+      if (!checkLevel(level)) return;
     }
 
     // 检查核心日志记录器是否已初始化
@@ -196,6 +196,7 @@ const createLoggerWrap = (
     info: (...msg) => print('info', ...msg),
     /** 记录调试级别日志 */
     debug: (...msg) => print('debug', ...msg),
+    // ----
     /**
      * 写入日志（优先使用底层 `stdout.write`）
      *
@@ -229,6 +230,12 @@ const createLoggerWrap = (
         })
       ),
     // ----
+    /**
+     * 检查是否可以输出该级别的日志
+     * @param {LogLevel} [level='debug'] - 日志级别
+     * @returns {boolean} 是否可以输出该级别的日志
+     */
+    checkLevel,
     /**
      * 设置当前日志记录器的输出级别
      * @param {LogLevel | null} level - 日志级别

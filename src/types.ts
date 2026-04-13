@@ -195,13 +195,19 @@ export const LOGGER_APPEND_CONFIG: unique symbol = Symbol(
  * @template CTX 日志上下文类型
  * @description 提供完整的日志记录功能，包括不同级别的日志方法和上下文管理
  */
-export interface Logger<CTX extends LoggerContext>
+export interface Logger<CTX extends LoggerContext = LoggerContext>
   extends LogWithLevels, WithCluster<CTX> {
   /**
    * 追加配置的内部方法
    * @param conf 要追加的配置对象
    */
   [LOGGER_APPEND_CONFIG]: (conf: Partial<LoggerConfig>) => void;
+  /**
+   * 检查是否可以输出该级别的日志
+   * @param level [default: 'debug'] 日志级别
+   * @returns 是否可以输出该级别的日志
+   */
+  checkLevel: (level?: LogLevel) => boolean;
   /**
    * 设置当前日志记录器的输出级别
    * @param level 日志级别

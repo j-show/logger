@@ -82,7 +82,12 @@ export const isNodeEnvironment = () => {
   const versions = process.versions;
   if (!versions) return false;
 
-  if (!versions.node) return false;
+  // Node.js
+  if (typeof versions.node === 'string' && versions.node.length > 0)
+    return true;
 
-  return !!versions.deon || !!versions.bun;
+  return (
+    (typeof versions.deon === 'string' && versions.deon.length > 0) ||
+    (typeof versions.bun === 'string' && versions.bun.length > 0)
+  );
 };

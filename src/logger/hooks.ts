@@ -107,8 +107,16 @@ export const useLogger = (ctx: string | Function | object) => {
   // 该代理对象的所有方法调用都不会产生任何效果
   return new Proxy({} as typeof logger, {
     get: (_, key, self) => {
-      // 如果访问的是 'child' 方法，返回自身（保持链式调用兼容性）
+      // fork 返回自身，保持链式调用兼容性
+      if (key === 'fork') return () => self;
+
+      // scope 仍会执行回调，但传入 no-op logger
+      if (key === 'scope')
+        return (_ctx: unknown, cb: (log: typeof logger) => unknown) => cb(self);
+
+      // 兼容旧接口（若外部误用 child）
       if (key === 'child') return () => self;
+
       // 其他所有方法都返回空函数
       return () => {};
     }

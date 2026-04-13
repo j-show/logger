@@ -152,6 +152,14 @@ logger.scope({ namespace: 'request' }, log => {
 });
 ```
 
+## Raw Write
+
+If you want a "stream-like" write (bypassing level selection but still applying `filter`/`hook`), use `logger.write(...)`.
+
+```typescript
+logger.write('hello', 'world');
+```
+
 ---
 
 # Advanced Features
@@ -469,6 +477,9 @@ Log info level messages
 ### `logger.debug(...msg: unknown[])`
 Log debug level messages
 
+### `logger.write(...msg: unknown[])`
+Write output with "raw write" semantics (Node: `stdout.write`, Browser: fallback to `info`)
+
 ### `logger.fork(context: LoggerSubContext)`
 Create a new child logger instance
 
@@ -668,6 +679,14 @@ The same API works in both environments without any code changes.
 # Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+---
+
+# Testing
+
+```bash
+pnpm test
+```
 
 ---
 
