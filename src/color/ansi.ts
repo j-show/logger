@@ -52,11 +52,11 @@ const wrapAnsi256 = (
 ): string => {
   const offset = isBackground ? 10 : 0;
 
-  return (
-    `\u001B[${38 + offset};5;${rgb2ansi(color)}m` +
-    content +
+  return [
+    `\u001B[${38 + offset};5;${rgb2ansi(color)}m`,
+    content,
     `\u001B[${39 + offset}m`
-  );
+  ].join('');
 };
 
 /**
@@ -81,4 +81,16 @@ export const wrapColorANSI = (
   if (backgroundColor) ret = wrapAnsi256(ret, backgroundColor, true);
 
   return ret;
+};
+
+/**
+ * 使用 ANSI 颜色索引包装内容
+ * @function wrapAnsiIndex
+ * @param {unknown} content - 要包装的内容
+ * @param {number} color - 颜色索引值
+ * @returns {string} 包装后的 ANSI 转义序列字符串
+ * @description 生成 ANSI 转义序列来设置文本的前景色
+ */
+export const wrapAnsiIndex = (content: unknown, color: number) => {
+  return [`\u001B[${color}m`, content, `\u001B[0m`].join('');
 };

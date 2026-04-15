@@ -4,6 +4,7 @@
  * @description 提供日志记录器的创建、配置和管理功能
  */
 
+import { ColorIdxDefault, wrapAnsiIndex } from '../color';
 import {
   type CoreLogger,
   type CoreLoggerFactory,
@@ -196,6 +197,11 @@ const createLoggerWrap = (
     info: (...msg) => print('info', ...msg),
     /** 记录调试级别日志 */
     debug: (...msg) => print('debug', ...msg),
+    // ----
+    label: (...msg) =>
+      print('info', ...msg.map(v => wrapAnsiIndex(v, ColorIdxDefault.label))),
+    step: (...msg) =>
+      print('info', ...msg.map(v => wrapAnsiIndex(v, ColorIdxDefault.step))),
     // ----
     /**
      * 写入日志（优先使用底层 `stdout.write`）

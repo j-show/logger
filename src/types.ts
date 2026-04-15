@@ -47,6 +47,10 @@ export const LogLevels = ['error', 'warn', 'info', 'debug'] as const;
  */
 export type LogLevel = (typeof LogLevels)[number];
 
+export const LogFeats = ['label', 'step'] as const;
+
+export type LogFeat = (typeof LogFeats)[number];
+
 /**
  * 日志函数类型
  * @typedef {(...msg: Array<unknown>) => unknown} LogFunction
@@ -146,6 +150,8 @@ export type LoggerSubContext<CTX extends LoggerContext> = Partial<
  */
 type LogWithLevels = { [x in LogLevel]: LogFunction };
 
+type LogWithFeats = { [x in LogFeat]: LogFunction };
+
 /**
  * 支持集群操作的接口
  * @interface WithCluster
@@ -196,7 +202,7 @@ export const LOGGER_APPEND_CONFIG: unique symbol = Symbol(
  * @description 提供完整的日志记录功能，包括不同级别的日志方法和上下文管理
  */
 export interface Logger<CTX extends LoggerContext = LoggerContext>
-  extends LogWithLevels, WithCluster<CTX> {
+  extends LogWithLevels, LogWithFeats, WithCluster<CTX> {
   /**
    * 追加配置的内部方法
    * @param conf 要追加的配置对象

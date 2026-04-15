@@ -3,7 +3,7 @@
  * @module color/define
  */
 
-import { type LogLevel } from '../types';
+import { type LogFeat, type LogLevel } from '../types';
 
 /**
  * RGB 颜色值类型
@@ -19,6 +19,11 @@ export const ColorHexDefault: { [key in LogLevel]?: ColorHex } = {
   warn: [255, 185, 0],
   error: [255, 39, 64],
   debug: [184, 211, 237]
+};
+
+export const ColorIdxDefault: { [key in LogFeat]: number } = {
+  label: 32,
+  step: 35
 };
 
 /**
