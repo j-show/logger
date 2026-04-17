@@ -56,12 +56,15 @@ describe('coreLogger.write', () => {
       .spyOn(console, 'info')
       .mockImplementation(() => {});
 
-    coreLogger.write(mockContext, 'hello', 123);
+    coreLogger.write(mockContext, 'hello');
 
     expect(stdoutSpy).toHaveBeenCalledOnce();
     const arg = stdoutSpy.mock.calls[0]?.[0];
     expect(typeof arg).toBe('string');
-    expect((arg as string).endsWith('\n')).toBe(true);
+
+    // write() 在 Node 环境下使用“清行 + 回车”写入（不保证以换行结尾）
+    expect((arg as string).startsWith('\r\u001b[2K')).toBe(true);
+    expect(arg as string).toContain('hello');
 
     // Node 分支不应降级走 console.info
     expect(consoleInfoSpy).not.toHaveBeenCalled();
@@ -87,7 +90,7 @@ describe('coreLogger.write', () => {
       .spyOn(console, 'info')
       .mockImplementation(() => {});
 
-    coreLogger.write(mockContext, 'hello', { a: 1 });
+    coreLogger.write(mockContext, 'hello');
 
     expect(consoleInfoSpy).toHaveBeenCalledOnce();
     expect(stdoutSpy).not.toHaveBeenCalled();
@@ -115,7 +118,7 @@ describe('logger.write', () => {
       createCoreLogger: () => fakeCoreLogger
     });
 
-    logger.write('hello', 1, { a: 1 });
+    logger.write('hello');
 
     expect(writeSpy).toHaveBeenCalledOnce();
     expect(printSpy).not.toHaveBeenCalled();
@@ -135,7 +138,7 @@ describe('logger.write', () => {
     const { configure, logger } = await import('../../src/logger');
     configure();
 
-    logger.write('hello', { a: 1 });
+    logger.write('hello');
 
     expect(infoSpy).toHaveBeenCalledOnce();
     expect(stdoutSpy).not.toHaveBeenCalled();

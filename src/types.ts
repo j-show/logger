@@ -191,7 +191,7 @@ interface WithCluster<CTX extends LoggerContext> {
    * - 默认控制台实现（Node.js）会写入一行并追加换行；浏览器环境会降级为 `info` 打印。
    * @param ...msg 日志消息数组
    */
-  write: LogFunction;
+  write: (message: string) => unknown;
   /**
    * 创建一个新的子日志记录器
    * @param context 子上下文配置
@@ -276,9 +276,9 @@ export interface CoreLogger<CTX extends LoggerContext> {
    *
    * 注意：是否追加换行由具体实现决定；接口层不做强约束。
    * @param context 日志上下文
-   * @param ...msg 日志消息数组
+   * @param msg 日志消息
    */
-  write: (context: CTX, ...msg: Array<unknown>) => unknown;
+  write: (context: CTX, msg: string) => unknown;
   /**
    * 打印日志的核心方法
    * @param env 包含日志级别和上下文的环境对象

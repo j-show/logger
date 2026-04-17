@@ -154,10 +154,11 @@ logger.scope({ namespace: 'request' }, log => {
 
 ## Raw Write
 
-If you want a "stream-like" write (bypassing level selection but still applying `filter`/`hook`), use `logger.write(...)`.
+If you want a "stream-like" write (bypassing level selection but still applying `filter`/`hook`), use `logger.write(XX)`.
 
 ```typescript
-logger.write('hello', 'world');
+logger.write('hello');
+logger.write('world\n'); // You need to manually add the newline character at the end
 ```
 
 ---
@@ -478,7 +479,7 @@ Log info level messages
 ### `logger.debug(...msg: unknown[])`
 Log debug level messages
 
-### `logger.write(...msg: unknown[])`
+### `logger.write(msg: string)`
 Write output with "raw write" semantics (Node: `stdout.write`, Browser: fallback to `info`)
 
 ### `logger.fork(context: LoggerSubContext)`

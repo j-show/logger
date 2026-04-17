@@ -258,26 +258,26 @@ export const LoggerFactoryOfConsole: CoreLoggerFactory<LoggerContext> = () => {
      *
      * 该方法固定以 `info` 级别输出（用于保持与 `logger.write` 的“无级别/直写”语义兼容）。
      */
-    write: (context, ...messages) => {
+    write: (context, message) => {
       if (!isNodeEnvironment()) {
-        coreLogger.print({ level: 'info', context }, ...messages);
+        coreLogger.print({ level: 'info', context }, message);
         return;
       }
 
       const { config, ...rest } = context;
 
       if (config.format === 'json') {
-        const chunks = jsonStringifySafe({ level: 'info', ...rest, messages });
+        const chunks = jsonStringifySafe({ level: 'info', ...rest, message });
 
-        process.stdout.write(`${chunks}\n`);
+        process.stdout.write(`\r\x1b[2K${chunks}`);
       }
 
       if (config.format === 'text') {
-        const chunks = buildChunksForText(context, 'info', messages);
-        process.stdout.write(`${chunks.join(' ')}\n`);
+        const chunks = buildChunksForText(context, 'info', [message]);
+        process.stdout.write(`\r\x1b[2K${chunks.join(' ')}`);
       }
 
-      if (config.hook) config.hook('info', context, ...messages);
+      if (config.hook) config.hook('info', context, message);
     },
     /**
      * 打印日志的核心方法

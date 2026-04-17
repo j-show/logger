@@ -209,7 +209,7 @@ const createLoggerWrap = (
 
     // 调用核心日志记录器输出日志
     if (level === 'none') {
-      coreLogger.write(context, ...msg);
+      coreLogger.write(context, msg[0] as string);
     } else {
       coreLogger.print({ level, context }, ...msg);
     }
@@ -257,7 +257,7 @@ const createLoggerWrap = (
      *
      * 注意：`write` 仍会执行过滤器（`config.filter`）与 hook（若核心实现支持）。
      */
-    write: (...msg) => print('none', ...msg),
+    write: msg => print('none', msg),
     /**
      * 创建一个新的子日志记录器
      * @param {LoggerSubContext<LoggerContext>} ctx - 子上下文配置

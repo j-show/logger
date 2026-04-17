@@ -151,10 +151,11 @@ logger.scope({ namespace: 'request' }, log => {
 
 ## 直写（Raw Write）
 
-如果你需要更贴近“流式写入”的输出（绕过 level 选择，但仍会执行 `filter`/`hook`），可以使用 `logger.write(...)`。
+如果你需要更贴近“流式写入”的输出（绕过 level 选择，但仍会执行 `filter`/`hook`），可以使用 `logger.write(XX)`。
 
 ```typescript
-logger.write('hello', 'world');
+logger.write('hello');
+logger.write('world\n'); // 需要自行在结尾进行换行符拼接
 ```
 
 ---
@@ -475,7 +476,7 @@ const [cssContent, cssStyle] = Color.wrapColorCSS('Hello', {
 ### `logger.debug(...msg: unknown[])`
 记录调试级别日志
 
-### `logger.write(...msg: unknown[])`
+### `logger.write(msg: string)`
 直写输出（Node：`stdout.write`，Browser：降级为 `info`）
 
 ### `logger.fork(context: LoggerSubContext)`
