@@ -235,6 +235,11 @@ export interface Logger<CTX extends LoggerContext = LoggerContext>
    */
   [LOGGER_APPEND_CONFIG]: (conf: Partial<LoggerConfig>) => void;
   /**
+   * 切换当前日志记录器为静默模式
+   * @param status [default: true] 是否静默模式，true 为静默，false 为取消静默, undefined 为切换状态
+   */
+  toggleMute: (status?: boolean) => void;
+  /**
    * 检查是否可以输出该级别的日志
    * @param level [default: 'debug'] 日志级别
    * @returns 是否可以输出该级别的日志

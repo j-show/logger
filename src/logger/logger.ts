@@ -21,6 +21,17 @@ import { LoggerFactoryOfConsole } from './console';
 
 // ------------
 
+export type LogLevelOrMute = LogLevel | 'mute';
+
+interface LoggerPrintLevel {
+  level: LogLevelOrMute | null;
+  levels: LogLevel[] | null;
+}
+
+interface CurrentPrintLevel extends LoggerPrintLevel {
+  mute: boolean;
+}
+
 /**
  * 日志级别索引映射表
  * @constant {Object} logLevelIndexMap
@@ -34,25 +45,49 @@ const logLevelIndexMap = LogLevels.reduce(
   [x in LogLevel]: number;
 };
 
-/** 全局日志输出级别 */
-let globalPrintLevel: LogLevel = 'info';
-/** 全局日志输出级别列表 */
-let globalPrintLevels: LogLevel[] = [...LogLevels];
+const defaultPrintLevel = {
+  level: 'info' as LogLevel,
+  levels: [...LogLevels] as LogLevel[]
+};
+
+const globalPrintLevel: LoggerPrintLevel = {
+  /** 全局日志输出级别 */
+  level: 'info',
+  /** 全局日志输出级别列表 */
+  levels: [...LogLevels]
+};
+
 /** 核心日志记录器实例 */
 let coreLogger: CoreLogger<LoggerContext> | undefined;
+
+const updateLevel = (
+  printLevel: LoggerPrintLevel,
+  level?: LogLevelOrMute | null
+) => {
+  printLevel.level =
+    level === 'mute' || LogLevels.includes(level as LogLevel)
+      ? level || null
+      : null;
+};
+
+const updateLevels = (printLevel: LoggerPrintLevel, levels: LogLevel[]) => {
+  printLevel.levels =
+    levels.length < 1
+      ? null
+      : Array.from(new Set(levels)).filter(v => LogLevels.includes(v));
+};
 
 /**
  * 设置全局日志输出级别
  * @function setLogLevel
- * @param {LogLevel} level - 要设置的日志级别
+ * @param {LogLevelOrMute} level - 要设置的日志级别
  * @description 设置全局的日志输出级别，只有等于或低于此级别的日志才会被输出
  * @example
  * setLogLevel('debug'); // 显示所有级别的日志
  * setLogLevel('error'); // 只显示错误日志
  */
-export const setLogLevel = (level: LogLevel) => {
-  globalPrintLevel = level;
-};
+export const setLogLevel = (level: LogLevelOrMute) =>
+  updateLevel(globalPrintLevel, level);
 
 /**
  * 设置全局“允许输出”的日志级别白名单。
@@ -65,11 +100,8 @@ export const setLogLevel = (level: LogLevel) => {
  * setLogLevels('info', 'error'); // 只允许 info 与 error（warn/debug 会被屏蔽）
  * setLogLevels(...LogLevels); // 允许全部级别
  */
-export const setLogLevels = (...levels: LogLevel[]) => {
-  globalPrintLevels = Array.from(new Set(levels)).filter(v =>
-    LogLevels.includes(v)
-  );
-};
+export const setLogLevels = (...levels: LogLevel[]) =>
+  updateLevels(globalPrintLevel, levels);
 
 /**
  * 判断指定级别的日志是否可以被输出
@@ -82,7 +114,11 @@ export const setLogLevels = (...levels: LogLevel[]) => {
  * canPrintByLevel('debug', 'info') // false，debug 级别低于 info
  * canPrintByLevel('error', 'info') // true，error 级别高于 info
  */
-export const canPrintByLevel = (level: LogLevel, printLevel: LogLevel) => {
+export const canPrintByLevel = (
+  level: LogLevel,
+  printLevel: LogLevelOrMute
+) => {
+  if (printLevel === 'mute') return false;
   return logLevelIndexMap[level] <= logLevelIndexMap[printLevel];
 };
 
@@ -128,43 +164,45 @@ const mergeContexts = (
   );
 };
 
-interface LoggerPrintLevel {
-  level: LogLevel | null;
-  levels: LogLevel[] | null;
-}
-
 /**
  * 创建日志记录器包装器
  * @function createLoggerWrap
  * @param {LoggerContext} context - 日志上下文
- * @param {LogLevel | LogLevel[] | LoggerPrintLevel} [printLevel] - 可选的日志输出级别，如果未指定则使用全局级别
+ * @param {LogLevelOrMute | LogLevel[] | LoggerPrintLevel | boolean} [printLevel] - 可选的日志输出级别，如果未指定则使用全局级别
  * @returns {Logger<LoggerContext>} 日志记录器实例
  * @description 创建一个日志记录器实例，提供不同级别的日志方法和上下文管理功能
  * @private
  */
 const createLoggerWrap = (
   context: LoggerContext,
-  printLevel?: LogLevel | LogLevel[] | LoggerPrintLevel
+  printLevel?: LogLevelOrMute | LogLevel[] | LoggerPrintLevel | boolean
 ): Logger<LoggerContext> => {
-  const currentPrintLevel: LoggerPrintLevel = {
+  const currentPrintLevel: CurrentPrintLevel = {
     level: null,
-    levels: null
+    levels: null,
+    mute: false
   };
 
-  const setLevel = (level?: LogLevel | null) => {
-    currentPrintLevel.level = LogLevels.includes(level as LogLevel)
-      ? level || null
-      : null;
+  const toggleMute = (status?: boolean) => {
+    if (status == null) {
+      currentPrintLevel.mute = !currentPrintLevel.mute;
+    } else {
+      currentPrintLevel.mute = status;
+    }
+  };
+
+  const setLevel = (level?: LogLevelOrMute | null) => {
+    updateLevel(currentPrintLevel, level);
   };
 
   const setLevels = (...levels: LogLevel[]) => {
-    currentPrintLevel.levels =
-      levels.length < 1
-        ? null
-        : Array.from(new Set(levels)).filter(v => LogLevels.includes(v));
+    updateLevels(currentPrintLevel, levels);
   };
 
   switch (typeof printLevel) {
+    case 'boolean':
+      toggleMute(printLevel);
+      break;
     case 'string':
       setLevel(printLevel);
       break;
@@ -179,9 +217,21 @@ const createLoggerWrap = (
   }
 
   const checkLevel = (level: LogLevel = 'debug') => {
+    if (currentPrintLevel.mute) return false;
+
     return (
-      canPrintByContain(level, currentPrintLevel.levels || globalPrintLevels) &&
-      canPrintByLevel(level, currentPrintLevel.level || globalPrintLevel)
+      canPrintByContain(
+        level,
+        currentPrintLevel.levels ||
+          globalPrintLevel.levels ||
+          defaultPrintLevel.levels
+      ) &&
+      canPrintByLevel(
+        level,
+        currentPrintLevel.level ||
+          globalPrintLevel.level ||
+          defaultPrintLevel.level
+      )
     );
   };
 
@@ -272,6 +322,11 @@ const createLoggerWrap = (
      */
     scope: (ctx, cb) => cb(fork(ctx)),
     // ----
+    /**
+     * 切换当前日志记录器为静默模式
+     * @param status [default: undefined] 是否静默模式，true 为静默，false 为取消静默, undefined 为切换状态
+     */
+    toggleMute,
     /**
      * 检查是否可以输出该级别的日志
      * @param {LogLevel} [level='debug'] - 日志级别
