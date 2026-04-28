@@ -26,9 +26,6 @@ export type LogLevelOrMute = LogLevel | 'mute';
 interface LoggerPrintLevel {
   level: LogLevelOrMute | null;
   levels: LogLevel[] | null;
-}
-
-interface CurrentPrintLevel extends LoggerPrintLevel {
   mute: boolean;
 }
 
@@ -54,7 +51,9 @@ const globalPrintLevel: LoggerPrintLevel = {
   /** 全局日志输出级别 */
   level: 'info',
   /** 全局日志输出级别列表 */
-  levels: [...LogLevels]
+  levels: [...LogLevels],
+  /** 全局日志输出是否静默 */
+  mute: false
 };
 
 /** 核心日志记录器实例 */
@@ -78,6 +77,18 @@ const updateLevels = (printLevel: LoggerPrintLevel, levels: LogLevel[]) => {
 };
 
 /**
+ * 切换全局日志输出是否静默
+ * @param status [default: undefined] 是否静默模式，true 为静默，false 为取消静默, undefined 为切换状态
+ */
+export const toggleLogMute = (status?: boolean) => {
+  if (status == null) {
+    globalPrintLevel.mute = !globalPrintLevel.mute;
+  } else {
+    globalPrintLevel.mute = status;
+  }
+};
+
+/**
  * 设置全局日志输出级别
  * @function setLogLevel
  * @param {LogLevelOrMute} level - 要设置的日志级别
@@ -86,8 +97,9 @@ const updateLevels = (printLevel: LoggerPrintLevel, levels: LogLevel[]) => {
  * setLogLevel('debug'); // 显示所有级别的日志
  * setLogLevel('error'); // 只显示错误日志
  */
-export const setLogLevel = (level: LogLevelOrMute) =>
+export const setLogLevel = (level: LogLevelOrMute) => {
   updateLevel(globalPrintLevel, level);
+};
 
 /**
  * 设置全局“允许输出”的日志级别白名单。
@@ -97,11 +109,18 @@ export const setLogLevel = (level: LogLevelOrMute) =>
  *
  * @param levels - 允许输出的日志级别列表（白名单）
  * @example
+ * setLogLevels(); // 不设置任何级别
  * setLogLevels('info', 'error'); // 只允许 info 与 error（warn/debug 会被屏蔽）
  * setLogLevels(...LogLevels); // 允许全部级别
  */
-export const setLogLevels = (...levels: LogLevel[]) =>
+export const setLogLevels = (...levels: LogLevel[]) => {
+  if (levels.length < 1) {
+    globalPrintLevel.levels = [];
+    return;
+  }
+
   updateLevels(globalPrintLevel, levels);
+};
 
 /**
  * 判断指定级别的日志是否可以被输出
@@ -177,7 +196,7 @@ const createLoggerWrap = (
   context: LoggerContext,
   printLevel?: LogLevelOrMute | LogLevel[] | LoggerPrintLevel | boolean
 ): Logger<LoggerContext> => {
-  const currentPrintLevel: CurrentPrintLevel = {
+  const currentPrintLevel: LoggerPrintLevel = {
     level: null,
     levels: null,
     mute: false
@@ -217,7 +236,7 @@ const createLoggerWrap = (
   }
 
   const checkLevel = (level: LogLevel = 'debug') => {
-    if (currentPrintLevel.mute) return false;
+    if (currentPrintLevel.mute || globalPrintLevel.mute) return false;
 
     return (
       canPrintByContain(
