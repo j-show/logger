@@ -1,2 +1,2 @@
 #!/bin/sh
-lint-staged
+lint-staged --allow-empty

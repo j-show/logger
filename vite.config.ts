@@ -16,9 +16,7 @@ export default defineConfig({
   plugins: [
     dts({
       entryRoot: resolve('src'),
-      tsconfigPath: resolve('tsconfig.json'),
-      outDir: resolve('dist'),
-      logLevel: 'error'
+      tsconfigPath: resolve('tsconfig.json')
     })
   ],
   build: {
@@ -29,14 +27,10 @@ export default defineConfig({
     lib: {
       entry: resolve('src/index.ts'),
       formats: ['cjs', 'es'],
-      fileName: format => `index.${format === 'es' ? 'mjs' : format}`
+      fileName: format => `index.${format === 'es' ? 'mjs' : 'cjs'}`
     },
-    rollupOptions: {
-      external: Array.from(externals),
-      output: {
-        preserveModules: false,
-        exports: 'named'
-      }
+    rolldownOptions: {
+      external: Array.from(externals)
     }
   }
 });

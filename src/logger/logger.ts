@@ -235,9 +235,11 @@ const createLoggerWrap = (
       break;
   }
 
-  const checkLevel = (level: LogLevel = 'debug') => {
-    if (currentPrintLevel.mute || globalPrintLevel.mute) return false;
+  const checkMute = () => {
+    return currentPrintLevel.mute || globalPrintLevel.mute;
+  };
 
+  const checkLevel = (level: LogLevel = 'debug') => {
     return (
       canPrintByContain(
         level,
@@ -261,6 +263,8 @@ const createLoggerWrap = (
    * @private
    */
   const print = (level: LogLevel | 'none', ...msg: Array<unknown>) => {
+    if (checkMute()) return;
+
     if (level !== 'none') {
       // 检查日志级别是否允许输出
       if (!checkLevel(level)) return;
@@ -295,14 +299,26 @@ const createLoggerWrap = (
   };
 
   return {
-    // eslint-disable-next-line no-console
-    empty: () => console.log(),
-    // eslint-disable-next-line no-console
-    table: (...args) => console.table(...args),
-    // eslint-disable-next-line no-console
-    trace: (...args) => console.trace(...args),
-    // eslint-disable-next-line no-console
-    dir: obj => console.dir(obj, { depth: null }),
+    empty: () => {
+      if (checkMute()) return;
+      // eslint-disable-next-line no-console
+      console.log();
+    },
+    table: (...args) => {
+      if (checkMute()) return;
+      // eslint-disable-next-line no-console
+      console.table(...args);
+    },
+    trace: (...args) => {
+      if (checkMute()) return;
+      // eslint-disable-next-line no-console
+      console.trace(...args);
+    },
+    dir: obj => {
+      if (checkMute()) return;
+      // eslint-disable-next-line no-console
+      console.dir(obj, { depth: null });
+    },
     // ----
     /** 记录错误级别日志 */
     error: (...msg) => print('error', ...msg),
