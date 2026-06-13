@@ -6,7 +6,13 @@ export default [
   ...jshowConfig.node,
   ...prettierConfigs,
   {
-    ignores: ['dist', 'node_modules', 'build', 'coverage']
+    ignores: [
+      '**/dist/*',
+      '**/node_modules/*',
+      '**/build/*',
+      '**/coverage/*',
+      'pnpm-lock.yaml'
+    ]
   },
   {
     // 为 examples 目录中的 CommonJS 文件添加特殊配置

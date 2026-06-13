@@ -6,15 +6,17 @@
 
 import { ColorIdxDefault, wrapAnsiIndex } from '../color';
 import {
+  type ConfigureOptions,
   type CoreLogger,
-  type CoreLoggerFactory,
   type Logger,
   LOGGER_APPEND_CONFIG,
   type LoggerConfig,
   type LoggerContext,
+  type LoggerProxyHandler,
   type LoggerSubContext,
   type LogLevel,
-  LogLevels
+  LogLevels,
+  type LogMeta
 } from '../types';
 
 import { LoggerFactoryOfConsole } from './console';
@@ -401,13 +403,47 @@ const createLoggerWrap = (
  * logger.info('Hello World');
  * logger.error('Something went wrong');
  */
-export const logger = createLoggerWrap({
+const realLogger = createLoggerWrap({
   config: {
     format: 'text',
     enableNamespacePrefix: true,
     enableNamespacePrefixColors: true,
     appendTagsForTextPrint: true,
     appendExtraForTextPrint: true
+  }
+});
+
+let proxyLogger: Logger | null = null;
+
+const createLoggerProxy = (
+  logger: Logger,
+  handle: LoggerProxyHandler,
+  meta: LogMeta = {}
+): Logger => {
+  return new Proxy<Logger>(logger, {
+    get(target, key: keyof Logger, self) {
+      if (LogLevels.includes(key as LogLevel)) {
+        return handle(target, key, self, meta);
+      }
+
+      if (key === 'fork') {
+        return ctx => createLoggerProxy(target, handle, { ...meta, ...ctx });
+      }
+
+      if (key === 'scope') {
+        return (ctx, cb) =>
+          cb(createLoggerProxy(target, handle, { ...meta, ...ctx }));
+      }
+
+      return target[key];
+    }
+  });
+};
+
+export const logger = new Proxy<Logger>(realLogger, {
+  get(_, key) {
+    if (!proxyLogger) return realLogger[key];
+    return proxyLogger[key];
   }
 });
 
@@ -429,16 +465,18 @@ let configureFucntionCallCount = 0;
  *   enableNamespacePrefix: false
  * });
  */
-export function configure({
+export function configure<T extends LoggerContext = LoggerContext>({
   createCoreLogger = LoggerFactoryOfConsole,
+  processLoggerProxy,
   config = {}
-}: {
-  createCoreLogger?: CoreLoggerFactory<LoggerContext>;
-  config?: Partial<LoggerConfig>;
-} = {}): void {
+}: ConfigureOptions<T> = {}): void {
   if (configureFucntionCallCount++) {
     throw new Error('Logger has been configured');
   }
+
+  proxyLogger = processLoggerProxy
+    ? createLoggerProxy(realLogger, processLoggerProxy)
+    : null;
 
   coreLogger = createCoreLogger();
 
