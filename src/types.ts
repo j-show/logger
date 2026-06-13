@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @fileoverview 日志记录器的类型定义
  * @module types
@@ -11,27 +12,6 @@
 export interface LogMeta {
   [key: string]: unknown;
 }
-
-/**
- * 错误元数据接口
- * @interface ErrorMeta
- * @extends {LogMeta}
- * @template T 标签类型，默认为字符串键值对对象
- * @description 扩展了 LogMeta，用于错误日志的特殊元数据
- */
-export interface ErrorMeta<T = { [key: string]: string }> extends LogMeta {
-  /** 可选的标签集合 */
-  setTags?: T;
-}
-
-/**
- * 错误类对象类型
- * @typedef {Error | { stack: string; message: string; name: string }} ErrorLiked
- * @description 表示类似 Error 的对象，包含 stack、message 和 name 属性
- */
-export type ErrorLiked =
-  | Error
-  | { stack: string; message: string; name: string };
 
 /**
  * 日志级别常量数组
@@ -275,7 +255,7 @@ export interface Logger<CTX extends LoggerContext = LoggerContext>
  * @template CTX 日志上下文类型
  * @description 定义日志输出的核心接口，由具体的实现类来实现
  */
-export interface CoreLogger<CTX extends LoggerContext> {
+export interface CoreLogger<CTX extends LoggerContext = LoggerContext> {
   /**
    * 写入日志（更贴近“直写/流式”语义）。
    *
@@ -301,5 +281,23 @@ export interface CoreLogger<CTX extends LoggerContext> {
  * @template CTX 日志上下文类型
  * @description 用于创建核心日志记录器实例的工厂函数
  */
-export type CoreLoggerFactory<CTX extends LoggerContext> =
+export type CoreLoggerFactory<CTX extends LoggerContext = LoggerContext> =
   () => CoreLogger<CTX>;
+
+/**
+ * 日志记录器代理处理函数类型
+ * @typedef {(logger: Logger, key: keyof Logger, self: any, meta?: LogMeta) => any} LoggerProxyHandler
+ * @description 用于处理日志记录器代理的函数，返回值为 any
+ */
+export type LoggerProxyHandler<CTX extends LoggerContext = LoggerContext> = (
+  logger: Logger<CTX>,
+  key: keyof Logger,
+  self: any,
+  meta?: LogMeta
+) => any;
+
+export interface ConfigureOptions<CTX extends LoggerContext = LoggerContext> {
+  createCoreLogger?: CoreLoggerFactory<CTX>;
+  processLoggerProxy?: LoggerProxyHandler<CTX>;
+  config?: Partial<LoggerConfig>;
+}
