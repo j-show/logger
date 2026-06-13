@@ -59,7 +59,7 @@ const globalPrintLevel: LoggerPrintLevel = {
 };
 
 /** 核心日志记录器实例 */
-let coreLogger: CoreLogger<LoggerContext> | undefined;
+let coreLogger: CoreLogger | undefined;
 
 const updateLevel = (
   printLevel: LoggerPrintLevel,
@@ -427,12 +427,18 @@ const createLoggerProxy = (
       }
 
       if (key === 'fork') {
-        return ctx => createLoggerProxy(target, handle, { ...meta, ...ctx });
+        return ((ctx: LoggerContext) =>
+          createLoggerProxy(target, handle, {
+            ...meta,
+            ...ctx
+          })) as Logger['fork'];
       }
 
       if (key === 'scope') {
-        return (ctx, cb) =>
-          cb(createLoggerProxy(target, handle, { ...meta, ...ctx }));
+        return ((ctx, cb) =>
+          cb(
+            createLoggerProxy(target, handle, { ...meta, ...ctx })
+          )) as Logger['scope'];
       }
 
       return target[key];
@@ -441,7 +447,7 @@ const createLoggerProxy = (
 };
 
 export const logger = new Proxy<Logger>(realLogger, {
-  get(_, key) {
+  get(_, key: keyof Logger) {
     if (!proxyLogger) return realLogger[key];
     return proxyLogger[key];
   }
@@ -456,6 +462,7 @@ let configureFucntionCallCount = 0;
  * 配置日志记录器
  * @function configure
  * @param {CoreLoggerFactory<LoggerContext>} [createCoreLogger=LoggerFactoryOfConsole] - 核心日志记录器工厂函数
+ * @param {LoggerProxyHandler<LoggerContext>} [processLoggerProxy] - 日志记录器代理处理函数
  * @param {Partial<LoggerConfig>} [config={}] - 日志记录器配置选项
  * @throws {Error} 如果日志记录器已经被配置过，则抛出错误
  * @description 初始化日志记录器，只能调用一次。如果未提供工厂函数，则使用默认的控制台日志记录器
@@ -478,7 +485,7 @@ export function configure<T extends LoggerContext = LoggerContext>({
     ? createLoggerProxy(realLogger, processLoggerProxy)
     : null;
 
-  coreLogger = createCoreLogger();
+  coreLogger = createCoreLogger() as CoreLogger;
 
   logger[LOGGER_APPEND_CONFIG](config);
 }
